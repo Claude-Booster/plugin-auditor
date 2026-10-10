@@ -1,0 +1,87 @@
+<svg viewBox="0 0 900 240" width="900" height="240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="plugin-auditor — inspect a plugin bundle's components before enabling it">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c1a28"/>
+      <stop offset="1" stop-color="#11202f"/>
+    </linearGradient>
+    <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
+      <path d="M26 0 H0 V26" fill="none" stroke="#ffffff" stroke-opacity="0.035" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="900" height="240" fill="url(#bg)"/>
+  <rect width="900" height="240" fill="url(#grid)"/>
+
+  <!-- ===================== LEFT: identity ===================== -->
+  <!-- package/bundle glyph -->
+  <g transform="translate(46,50)" fill="none" stroke="#7c8cf0" stroke-width="2.4" stroke-linejoin="round">
+    <path d="M22 2 L42 13 V35 L22 46 L2 35 V13 Z" fill="#16233a"/>
+    <path d="M2 13 L22 24 L42 13 M22 24 V46"/>
+  </g>
+
+  <text x="104" y="86" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace"
+        font-size="36" font-weight="700" fill="#eaf1f6" letter-spacing="-0.5">plugin-auditor</text>
+  <rect x="105" y="98" width="286" height="3" rx="1.5" fill="#7c8cf0"/>
+
+  <text x="105" y="129" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace"
+        font-size="15" fill="#9fb2c2">see what a plugin runs and loads before you enable it</text>
+  <text x="105" y="156" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace"
+        font-size="12.5" fill="#6f8496">hooks,  bin,  monitors,  workflows,  skills,  agents,  mcp</text>
+
+  <!-- ===================== RIGHT: bundle unpacked into components ===================== -->
+  <g font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12">
+    <!-- central package -->
+    <g transform="translate(540,120)" fill="none" stroke="#7c8cf0" stroke-width="2.4" stroke-linejoin="round">
+      <path d="M0 -26 L22 -13 V13 L0 26 L-22 13 V-13 Z" fill="#16233a"/>
+      <path d="M-22 -13 L0 0 L22 -13 M0 0 V26"/>
+    </g>
+
+    <!-- connector lines from package to each chip -->
+    <g stroke="#2b4157" stroke-width="1.6">
+      <line x1="562" y1="112" x2="648" y2="60"/>
+      <line x1="564" y1="120" x2="648" y2="100"/>
+      <line x1="564" y1="124" x2="648" y2="140"/>
+      <line x1="562" y1="130" x2="648" y2="180"/>
+    </g>
+
+    <!-- component chips: hooks + bin flagged red (HIGH), others neutral/green -->
+    <!-- hooks (HIGH) -->
+    <g>
+      <rect x="648" y="46" width="150" height="28" rx="6" fill="#16293a" stroke="#2f4a60" stroke-width="2">
+        <animate attributeName="stroke" keyTimes="0;0.30;0.34;0.92;0.96;1"
+          values="#2f4a60;#2f4a60;#e0564a;#e0564a;#2f4a60;#2f4a60" dur="8s" repeatCount="indefinite"/>
+      </rect>
+      <text x="660" y="64" fill="#8ea2b2">hooks  curl | sh</text>
+      <text x="786" y="64" text-anchor="end" fill="#ff6f61" opacity="0">!
+        <animate attributeName="opacity" keyTimes="0;0.32;0.36;0.92;0.96;1" values="0;0;1;1;0;0" dur="8s" repeatCount="indefinite"/>
+      </text>
+    </g>
+    <!-- bin (HIGH) -->
+    <g>
+      <rect x="648" y="86" width="150" height="28" rx="6" fill="#16293a" stroke="#2f4a60" stroke-width="2">
+        <animate attributeName="stroke" keyTimes="0;0.44;0.48;0.92;0.96;1"
+          values="#2f4a60;#2f4a60;#e0564a;#e0564a;#2f4a60;#2f4a60" dur="8s" repeatCount="indefinite"/>
+      </rect>
+      <text x="660" y="104" fill="#8ea2b2">bin/  on PATH</text>
+      <text x="786" y="104" text-anchor="end" fill="#ff6f61" opacity="0">!
+        <animate attributeName="opacity" keyTimes="0;0.46;0.50;0.92;0.96;1" values="0;0;1;1;0;0" dur="8s" repeatCount="indefinite"/>
+      </text>
+    </g>
+    <!-- skills (clean) -->
+    <g>
+      <rect x="648" y="126" width="150" height="28" rx="6" fill="#16293a" stroke="#2f4a60" stroke-width="2"/>
+      <text x="660" y="144" fill="#8ea2b2">skills  ok</text>
+      <text x="786" y="144" text-anchor="end" fill="#56c596">ok</text>
+    </g>
+    <!-- mcp (delegated) -->
+    <g>
+      <rect x="648" y="166" width="150" height="28" rx="6" fill="#16293a" stroke="#2f4a60" stroke-width="2"/>
+      <text x="660" y="184" fill="#8ea2b2">mcp  -> mcp-auditor</text>
+    </g>
+
+    <!-- scan sweep down the chips -->
+    <rect x="644" y="46" width="158" height="3" rx="1.5" fill="#7c8cf0" opacity="0.85">
+      <animate attributeName="y" keyTimes="0;0.08;0.80;1" values="46;46;192;192" dur="8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" keyTimes="0;0.08;0.09;0.80;0.82;1" values="0;0;0.85;0.85;0;0" dur="8s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+</svg>

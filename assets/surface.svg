@@ -1,0 +1,45 @@
+<svg viewBox="0 0 900 250" width="900" height="250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The plugin surfaces plugin-auditor inspects">
+  <defs>
+    <linearGradient id="sbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c1a28"/>
+      <stop offset="1" stop-color="#0f2130"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="250" fill="url(#sbg)"/>
+
+  <text x="60" y="30" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace"
+        font-size="14" font-weight="700" fill="#7c8cf0">a plugin is a bundle — every part is a surface</text>
+
+  <line x1="66" y1="52" x2="66" y2="226" stroke="#2b4157" stroke-width="2"/>
+  <circle cx="66" r="5.5" fill="#7c8cf0">
+    <animate attributeName="cy" values="54;222;222" keyTimes="0;0.85;1" dur="8s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.06;0.9;1" dur="8s" repeatCount="indefinite"/>
+  </circle>
+
+  <g font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace">
+    <g><circle cx="66" cy="60" r="3.5" fill="#e0564a"/>
+      <text x="86" y="64" font-size="13.5" fill="#eaf1f6">hooks</text>
+      <text x="300" y="64" font-size="12" fill="#6f8496">commands that auto-run on events</text></g>
+    <g><circle cx="66" cy="84" r="3.5" fill="#e0564a"/>
+      <text x="86" y="88" font-size="13.5" fill="#eaf1f6">bin/</text>
+      <text x="300" y="88" font-size="12" fill="#6f8496">executables placed on the Bash PATH</text></g>
+    <g><circle cx="66" cy="108" r="3.5" fill="#e0564a"/>
+      <text x="86" y="112" font-size="13.5" fill="#eaf1f6">monitors</text>
+      <text x="300" y="112" font-size="12" fill="#6f8496">persistent background processes</text></g>
+    <g><circle cx="66" cy="132" r="3.5" fill="#e6a23c"/>
+      <text x="86" y="136" font-size="13.5" fill="#eaf1f6">workflows.js &amp; lsp</text>
+      <text x="300" y="136" font-size="12" fill="#6f8496">code that runs at session start</text></g>
+    <g><circle cx="66" cy="156" r="3.5" fill="#e6a23c"/>
+      <text x="86" y="160" font-size="13.5" fill="#eaf1f6">bundled scripts</text>
+      <text x="300" y="160" font-size="12" fill="#6f8496">curl|sh, credential reads, base64, egress</text></g>
+    <g><circle cx="66" cy="180" r="3.5" fill="#e0564a"/>
+      <text x="86" y="184" font-size="13.5" fill="#eaf1f6">skills / commands / agents</text>
+      <text x="300" y="184" font-size="12" fill="#6f8496">prompt-injection, hidden unicode, allowed-tools</text></g>
+    <g><circle cx="66" cy="204" r="3.5" fill="#e6a23c"/>
+      <text x="86" y="208" font-size="13.5" fill="#eaf1f6">manifest</text>
+      <text x="300" y="208" font-size="12" fill="#6f8496">version float, impersonation, sensitive userConfig, remote .mcpb</text></g>
+    <g><circle cx="66" cy="222" r="3.5" fill="#56c596"/>
+      <text x="86" y="226" font-size="13.5" fill="#eaf1f6">bundled MCP</text>
+      <text x="300" y="226" font-size="12" fill="#6f8496">delegated to mcp-auditor</text></g>
+  </g>
+</svg>
