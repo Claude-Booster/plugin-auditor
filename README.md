@@ -80,6 +80,15 @@ Leads with a one-line verdict + per-severity counts, then findings grouped HIGH�
 - **Secrets masked** — sensitive `userConfig`/`env` surfaces show key names only; command/URL evidence masks likely secrets (best-effort, heuristic — not a guarantee).
 - The only thing it may spawn is the sibling **mcp-auditor** script (`~/.claude/skills/mcp-auditor/scripts/mcp_auditor.py`, which then runs as you), and only with `--with-mcp`. `--with-mcp` hands off to mcp-auditor, which STARTS the plugin's stdio MCP servers and connects to its http MCP URLs (plus your own configured servers) as you - use it only after reviewing the static report. Its output is secret-masked best-effort. mcp-auditor also writes its own baseline.json, so the plugin's current MCP tool metadata becomes the reference for later change checks.
 
+## Scanning this skill with SkillSpector
+`.skillspector-baseline.yaml` records the by-design findings in `scripts/` (credential-pattern regexes, detection-only network words, the opt-in `--with-mcp` subprocess, and test fixtures), each with a stated reason. It is evidence-bound: changing the flagged code re-activates the finding until reviewed again. Scan with:
+
+```
+skillspector scan . --no-llm --baseline .skillspector-baseline.yaml
+```
+
+Because of those unbaselined findings the overall result is still CRITICAL / DO_NOT_INSTALL; that is not a regression in `scripts/`. Findings in the shared commit-guard files (`.githooks/`, `.github/workflows/`) and `assets/` are intentionally not baselined.
+
 ## Contributing
 
 To *use* the skill you need nothing below. For changes, run the tests from the skill folder:
