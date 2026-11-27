@@ -34,6 +34,10 @@ fingerprints:
   rule_id: E2
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:ba301eb68b296a036e1865f5c09fffeccfd994721c5bce587c9237b067f56f2f
+  rule_id: PE3
+  file: .githooks/pre-commit
+  reason: 'Comment text only: explains that the secret scanner catches dotenv-style secrets; no credential file is read'
 - hash: sha256:b0ad20d76c3dc31036d32fbb9da225a2f554554a1e6b6ede6add4a6b6d6b32c9
   rule_id: PE3
   file: scripts/plugin_auditor.py
@@ -47,6 +51,10 @@ fingerprints:
   rule_id: P1
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:a9a246214782dfadb856ac1fbe2b3230ec8e41a46eb979bb0ed44f8c2d8eeefb
+  rule_id: SC2
+  file: assets/banner.svg
+  reason: Decorative text label in the README banner image (a pipe-to-shell illustration); no code is fetched or executed
 - hash: sha256:5a531e0f511550a9ae315cf39c0a07070fc063fa15c30ff0d595225a8bccf8f9
   rule_id: SC2
   file: scripts/test_plugin_auditor.py
@@ -59,47 +67,39 @@ fingerprints:
   rule_id: SC2
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:d368f02529acd66d38753848845eec33346335f12d7ee9430d5d929681da1773
-  rule_id: PE3
-  file: .githooks/pre-commit
-  reason: 'Comment text only: explains that the secret scanner catches dotenv-style secrets; no credential file is read'
-- hash: sha256:a9a246214782dfadb856ac1fbe2b3230ec8e41a46eb979bb0ed44f8c2d8eeefb
-  rule_id: SC2
-  file: assets/banner.svg
-  reason: Decorative text label in the README banner image (a pipe-to-shell illustration); no code is fetched or executed
-- hash: sha256:57f0e90a9ca1c1415189a5a1e46caecbd2eb43dd338e74e2afffdedbd43c3ad7
+- hash: sha256:2480ac2a5b6ba38fe7930fdc2971fbd432035fa4b83a80e237b2b8ec6873ed26
   rule_id: SC9
   file: .githooks/commit-msg
   reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
-- hash: sha256:860be13ecce0dc83631a9a00684f4846f4aec07ea15ed1c0ae8d4c7995a8dbf1
+- hash: sha256:17987d05b7bb3bd6f2df88bcb5c0f0cb6b29a84cd2f67330ef92a5e61b14f25a
   rule_id: SC9
   file: .githooks/pre-commit
   reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
-- hash: sha256:f8b2bc0601e50c984702d7186a443713cd64967f1a979f91a2eb87b7bc77d941
+- hash: sha256:8c953750f05dc412b5f7ecb62db4cc4956aba8358a7bb6728f4b30e2af86efc6
   rule_id: SC9
   file: .githooks/pre-push
   reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
-- hash: sha256:e88c5152f007f836e6ac19d80f88e1fd922192b043a70c391e6d37a054a20c19
+- hash: sha256:2e146ce49977c601fc07d4b3b60ced4026a1d89f26f1dedb164815195ae8e410
   rule_id: SC9
   file: .githooks/setup-hooks.ps1
   reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
-- hash: sha256:8fc02dbbf97538d4545314ce50cfbe3f4ed085ce2ee2f323d1345c3ec196a5c9
+- hash: sha256:30ea3c21809775a737ba614534ee3a7511cdf5d4ee36b303505fe2bcae8e857c
   rule_id: SC9
   file: .githooks/setup-hooks.sh
   reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
-- hash: sha256:282aa67f2a0863eed67c27530e69b8a436950fe29450d8336837e846495b19cb
+- hash: sha256:8701191a01b1edb34f151362152b05228bb6d2b186df56520767e17993ded5a9
   rule_id: SC9
   file: .githooks/tag
   reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
-- hash: sha256:603c59b81a309a5fb4dce2a48489bb743c85c99d698241284f6c9fbbbcbcfff8
+- hash: sha256:cb15ab24466f3ad6c84b1044e2c1479ff23d6cb4fb959b8bf1662fa64e567a49
   rule_id: SC9
   file: .githooks/test-hooks.sh
   reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
-- hash: sha256:3600213488faf36cf153704cfe7abcafc75e9691fd4057c3f6da60a73209c5ac
+- hash: sha256:6be03fd0b2e3125d78cd05e4aeeafd012bf8be5ce189a3df2ae0670a3edcb301
   rule_id: TM2
   file: .githooks/test-hooks.sh
   reason: Test-harness helper that deletes its own temporary fixture inside a throwaway repo; not chained tool abuse
-- hash: sha256:dcafd936da5a1bed206548870ba375bffedfa7d8038413c126ba835a19b13f1d
+- hash: sha256:fa12a63dfb413c4ea53c7d7e21c36981cc42c07804158e0517e57a1ad6a81497
   rule_id: TM1
   file: .github/workflows/verify.yml
   reason: 'Comment text only: explains why CI re-runs the scan (a local hook bypass cannot skip it); the workflow does not bypass anything'
