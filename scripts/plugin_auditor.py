@@ -8,14 +8,16 @@ Bash tool's PATH, monitors spawn persistent background processes, workflows run
 JavaScript, and the markdown of its skills/commands/agents loads straight into
 the model's prompt. Auditing only the plugin's *code* misses most of this.
 
-This tool is READ-ONLY. It ONLY reads files and pattern-matches. Without
+This tool is READ-ONLY by default. It ONLY reads files and pattern-matches. Without
 --with-mcp it NEVER executes any hook, script, binary, workflow, monitor, or MCP
 server from the plugin. It never prints sensitive userConfig/env values (key names only); command
 and URL evidence is shown with likely secrets (tokens, passwords, Authorization/
 Bearer, URL credentials, query values) masked on a best-effort basis. The single
 thing it may *spawn* is the sibling mcp-auditor script, only when you pass
---with-mcp - and mcp-auditor then STARTS the plugin's stdio MCP servers and connects
-to its http MCP URLs (plus your own configured servers) as you.
+--with-mcp - and mcp-auditor then STARTS every stdio MCP server in any .mcp.json under
+the plugin (manifest-inline servers are not live-audited) plus your own configured
+MCP servers, connects to http MCP URLs, and writes its own baseline, all as you. The
+report footer says so whenever that delegation ran.
 
 Stdlib only. Windows-safe (pathlib / json / re). Self-contained.
 """
@@ -95,7 +97,7 @@ INSTRUCTION_PATTERNS = [
 INSTRUCTION_RE = re.compile("|".join(INSTRUCTION_PATTERNS), re.IGNORECASE)
 
 # Network / exec patterns for workflow (.js) & bundled scripts.
-# DETECTION-ONLY: matched against plugin text; this tool itself makes no network calls.
+# DETECTION-ONLY: matched against plugin text; this tool itself makes no network calls (the opt-in --with-mcp child may).
 WORKFLOW_DANGER = re.compile(
     r"child_process|require\(\s*['\"]http|\bexec\b|execSync|spawn\b"
     r"|\bfetch\b|XMLHttpRequest|axios|net\.connect|https?\.request",
@@ -682,13 +684,18 @@ def _check_marketplace(audit_path: Path, findings: list, plugin_names):
 # --with-mcp delegation
 # --------------------------------------------------------------------------- #
 
+# States of a --with-mcp delegation, used to keep the report footer truthful.
+MCP_NONE, MCP_RAN, MCP_UNKNOWN, MCP_TIMEOUT = "none", "ran", "unknown", "timeout"
+
+
 def _delegate_mcp(plugin_root: Path):
+    """Return (note, state). state says whether MCP servers may have been started."""
     sibling = (Path.home() / ".claude" / "skills" / "mcp-auditor"
                / "scripts" / "mcp_auditor.py")
     if sibling.is_symlink():
-        return f"[--with-mcp] sibling mcp-auditor at {sibling} is a symlink; refused"
+        return f"[--with-mcp] sibling mcp-auditor at {sibling} is a symlink; refused", MCP_NONE
     if not sibling.is_file():
-        return "[--with-mcp] sibling mcp-auditor not found at %s" % sibling
+        return "[--with-mcp] sibling mcp-auditor not found at %s" % sibling, MCP_NONE
     try:
         proc = subprocess.run(
             # List argv, shell=False (default). Absolute path + "--config=" form means
@@ -699,19 +706,49 @@ def _delegate_mcp(plugin_root: Path):
         )
         out = (proc.stdout or "") + (proc.stderr or "")
         out = "\n".join(_redact(line[:2000]) for line in out.strip().splitlines())
-        return "[--with-mcp] executed %s; output for %s (secrets masked best-effort):\n%s" % (
-            sibling, plugin_root.name, out)
+        return ("[--with-mcp] executed %s (it may have started MCP servers and made network "
+                "calls); output for %s (secrets masked best-effort):\n%s"
+                % (sibling, plugin_root.name, out)), MCP_RAN
     except subprocess.TimeoutExpired:
-        return "[--with-mcp] mcp-auditor timed out for %s" % plugin_root.name
+        return ("[--with-mcp] mcp-auditor timed out for %s and was killed; MCP servers it "
+                "started may still be running" % plugin_root.name), MCP_TIMEOUT
     except Exception as exc:
-        return "[--with-mcp] mcp-auditor failed: %s" % exc
+        return "[--with-mcp] mcp-auditor failed: %s" % exc, MCP_UNKNOWN
 
 
 # --------------------------------------------------------------------------- #
 # Report
 # --------------------------------------------------------------------------- #
 
-def format_report(findings, audited_plugins, mcp_notes):
+_STATIC_FOOTER = ("NOTE: This is a STATIC scan. It did NOT execute the plugin, its hooks, "
+                  "scripts, binaries, workflows, monitors, or MCP servers.")
+_LIVE_FOOTER = ("NOTE: The static checks did NOT execute the plugin's hooks, scripts, binaries, "
+                "workflows, or monitors. HOWEVER --with-mcp ran mcp-auditor, which may have "
+                "STARTED stdio MCP servers (from any .mcp.json under the plugin and from your own "
+                "configured MCP servers) and connected to http MCP URLs as you, and may have updated its own "
+                "baseline (if anything changed). Treat the MCP delegation output as live execution.")
+_LIVE_EXTRA = {
+    MCP_TIMEOUT: " mcp-auditor timed out and was killed: MCP server processes it started may "
+                 "still be running - check and stop them.",
+    MCP_UNKNOWN: " mcp-auditor failed: it may or may not have started MCP servers first - "
+                 "assume it did.",
+}
+
+
+def _footer(mcp_states):
+    """Static-only footer unless a delegation may have executed anything."""
+    states = set(mcp_states) - {MCP_NONE}
+    if not states:
+        return [_STATIC_FOOTER,
+                ("For live MCP tool-metadata / tool-poisoning, run mcp-auditor "
+                 "(or re-run with --with-mcp).")]
+    extra = "".join(_LIVE_EXTRA[st] for st in (MCP_TIMEOUT, MCP_UNKNOWN) if st in states)
+    return [_LIVE_FOOTER + extra]
+
+
+def format_report(findings, audited_plugins, mcp_notes, mcp_states=()):
+    if mcp_notes and not mcp_states:  # fail safe: delegation output without a state
+        mcp_states = [MCP_UNKNOWN]
     counts = {HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0}
     for fi in findings:
         counts[fi.severity] = counts.get(fi.severity, 0) + 1
@@ -752,10 +789,7 @@ def format_report(findings, audited_plugins, mcp_notes):
         lines.append("")
 
     lines.append("-" * 70)
-    lines.append("NOTE: This is a STATIC scan. It did NOT execute the plugin, its "
-                 "hooks, scripts, binaries, workflows, monitors, or MCP servers.")
-    lines.append("For live MCP tool-metadata / tool-poisoning, run mcp-auditor "
-                 "(or re-run with --with-mcp).")
+    lines.extend(_footer(mcp_states))
     lines.append("Runtime/sandboxing behavior is NOT covered by this scan.")
     return "\n".join(lines)
 
@@ -768,6 +802,7 @@ def run_audit(path: Path, with_mcp: bool):
     findings = []
     audited = []
     mcp_notes = []
+    mcp_states = []
 
     if is_plugin(path):
         targets = [path]
@@ -787,11 +822,13 @@ def run_audit(path: Path, with_mcp: bool):
         audited.append(pname)
         findings.extend(audit_plugin(root, manifest))
         if with_mcp and ((root / ".mcp.json").is_file() or manifest.get("mcpServers")):
-            mcp_notes.append(_delegate_mcp(root))
+            note, state = _delegate_mcp(root)
+            mcp_notes.append(note)
+            mcp_states.append(state)
 
     _check_marketplace(path, findings, audited)
 
-    report = format_report(findings, audited, mcp_notes)
+    report = format_report(findings, audited, mcp_notes, mcp_states)
     exit_code = 1 if any(x.severity == HIGH for x in findings) else 0
     return report, exit_code
 
@@ -799,12 +836,14 @@ def run_audit(path: Path, with_mcp: bool):
 def main(argv=None):
     p = argparse.ArgumentParser(
         prog="plugin-auditor",
-        description="Statically audit a Claude Code plugin bundle (read-only).")
+        description="Statically audit a Claude Code plugin bundle (read-only unless --with-mcp).")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("audit", help="Audit a plugin or a directory of plugins.")
     a.add_argument("path", help="Path to a plugin bundle or a directory of plugins.")
     a.add_argument("--with-mcp", action="store_true",
-                   help="Also delegate bundled MCP servers to the sibling mcp-auditor.")
+                   help="Also run the sibling mcp-auditor, which STARTS stdio MCP servers and connects to "
+                        "http MCP URLs (the plugin's .mcp.json plus your own configured servers) as "
+                        "you and writes its baseline. Review the static report first.")
     args = p.parse_args(argv)
 
     target = Path(args.path).expanduser()
