@@ -8,10 +8,14 @@ Bash tool's PATH, monitors spawn persistent background processes, workflows run
 JavaScript, and the markdown of its skills/commands/agents loads straight into
 the model's prompt. Auditing only the plugin's *code* misses most of this.
 
-This tool is READ-ONLY. It ONLY reads files and pattern-matches. It NEVER
-executes any hook, script, binary, workflow, monitor, or MCP server from the
-plugin, and it NEVER prints secret values (only key names). The single thing it
-may *spawn* is the sibling mcp-auditor, and only when you pass --with-mcp.
+This tool is READ-ONLY. It ONLY reads files and pattern-matches. Without
+--with-mcp it NEVER executes any hook, script, binary, workflow, monitor, or MCP
+server from the plugin. It never prints sensitive userConfig/env values (key names only); command
+and URL evidence is shown with likely secrets (tokens, passwords, Authorization/
+Bearer, URL credentials, query values) masked on a best-effort basis. The single
+thing it may *spawn* is the sibling mcp-auditor script, only when you pass
+--with-mcp - and mcp-auditor then STARTS the plugin's stdio MCP servers and connects
+to its http MCP URLs (plus your own configured servers) as you.
 
 Stdlib only. Windows-safe (pathlib / json / re). Self-contained.
 """
@@ -91,6 +95,7 @@ INSTRUCTION_PATTERNS = [
 INSTRUCTION_RE = re.compile("|".join(INSTRUCTION_PATTERNS), re.IGNORECASE)
 
 # Network / exec patterns for workflow (.js) & bundled scripts.
+# DETECTION-ONLY: matched against plugin text; this tool itself makes no network calls.
 WORKFLOW_DANGER = re.compile(
     r"child_process|require\(\s*['\"]http|\bexec\b|execSync|spawn\b"
     r"|\bfetch\b|XMLHttpRequest|axios|net\.connect|https?\.request",
@@ -121,8 +126,29 @@ def _hidden_unicode(text: str):
     return found
 
 
+_SECRET_KEY = r"(?:authorization|token|password|passwd|pwd|secret|api[_-]?key|access[_-]?key|auth(?!or))"
+_REDACTIONS = [
+    # Authorization header: mask the whole value (scheme + credential, any scheme).
+    (re.compile(r"(?i)(authorization[\"']?\s*[:=]\s*[\"']?)[^\"'\n]+"), r"\1***"),
+    (re.compile(r"(?i)\b(bearer|basic)\s+[^\s\"']+"), r"\1 ***"),
+    (re.compile(r"(?i)(\b[\w-]{0,32}" + _SECRET_KEY + r"[\w-]{0,32}[\"']?\s*[:=]\s*[\"']?)"
+                r"(?!(?i:bearer|basic)\s)[^\s\"'&;]+"), r"\1***"),
+    (re.compile(r"(?i)(--?[\w-]{0,32}" + _SECRET_KEY + r"[\w-]{0,32}\s+)(?!-)[^\s\"']+"), r"\1***"),
+    (re.compile(r"(://[^/\s:@]+:)[^@\s/]+@"), r"\1***@"),   # URL userinfo
+    (re.compile(r"([?&][^=&\s]+=)[^&\s\"']+"), r"\1***"),   # query values
+]
+
+
+def _redact(s: str) -> str:
+    """Best-effort masking of likely secrets in evidence text."""
+    for rx, rep in _REDACTIONS:
+        s = rx.sub(rep, s)
+    return s
+
+
 def _trunc(s: str, n: int = 80) -> str:
-    s = " ".join(str(s).split())
+    # Clip first (bounds regex work on hostile input), then redact, then truncate.
+    s = _redact(" ".join(str(s).split())[: n * 4])
     return s if len(s) <= n else s[: n - 1] + "\u2026"
 
 
@@ -537,6 +563,8 @@ def _check_manifest_provenance(root, manifest, name, f):
 
     # Component paths containing '..' (traversal).
     for key, val in manifest.items():
+        if key == "userConfig":  # values here may be sensitive defaults; never scanned
+            continue
         for s in _iter_strings(val):
             if ".." in s and ("/" in s or "\\" in s):
                 f.append(Finding(HIGH, name, comp,
@@ -657,6 +685,8 @@ def _check_marketplace(audit_path: Path, findings: list, plugin_names):
 def _delegate_mcp(plugin_root: Path):
     sibling = (Path.home() / ".claude" / "skills" / "mcp-auditor"
                / "scripts" / "mcp_auditor.py")
+    if sibling.is_symlink():
+        return f"[--with-mcp] sibling mcp-auditor at {sibling} is a symlink; refused"
     if not sibling.is_file():
         return "[--with-mcp] sibling mcp-auditor not found at %s" % sibling
     try:
@@ -668,7 +698,9 @@ def _delegate_mcp(plugin_root: Path):
             capture_output=True, text=True, timeout=60, check=False,
         )
         out = (proc.stdout or "") + (proc.stderr or "")
-        return "[--with-mcp] mcp-auditor output for %s:\n%s" % (plugin_root.name, out.strip())
+        out = "\n".join(_redact(line[:2000]) for line in out.strip().splitlines())
+        return "[--with-mcp] executed %s; output for %s (secrets masked best-effort):\n%s" % (
+            sibling, plugin_root.name, out)
     except subprocess.TimeoutExpired:
         return "[--with-mcp] mcp-auditor timed out for %s" % plugin_root.name
     except Exception as exc:

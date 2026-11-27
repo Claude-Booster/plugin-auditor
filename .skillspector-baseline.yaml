@@ -1,0 +1,105 @@
+# SkillSpector baseline for plugin-auditor (accepted, by-design findings; see reasons).
+# Evidence-bound: re-generate/re-review after changing the flagged code.
+# Use: skillspector scan . --baseline .skillspector-baseline.yaml
+version: 2
+scanner_version: 2.13.7
+rules: []
+fingerprints:
+- hash: sha256:116963089bb78ab9a5f55e4221ab307a739a6a3846f4d02163d2f145f913c614
+  rule_id: AST4
+  file: scripts/plugin_auditor.py
+  reason: 'Sole subprocess: opt-in --with-mcp runs the sibling mcp-auditor with fixed argv, shell=False, symlink refused; documented in SKILL.md/README.md'
+- hash: sha256:6c1e8bdccff242753a70232bc648fb1ee7976dd4751c690304a485ebb50b8116
+  rule_id: AST4
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:afb5f1c0d2f79f2c089e8773c098dd64932e78d9ef3bb1ae3f6a4090c7c52da0
+  rule_id: AST4
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:5b11390fd8f4d0295504bfbf1c1df5a1da56804b6a747564df455ecb05a147b9
+  rule_id: LP1
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:94428d05a9df013277c6e1e21b8448391a8d0876cb7b8c2ff2de7126f0ca3216
+  rule_id: LP1
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:5b9ff1cd0e6cb5536ad5d494bd6a9d79962df7ba8ff9d70304eedee09f8dc169
+  rule_id: LP1
+  file: scripts/plugin_auditor.py
+  reason: 'Detection-only: network/exec words appear only inside scanner regex strings; the tool imports no network module and makes no network calls itself (the opt-in --with-mcp child may; see the AST4
+    entry) (SKILL.md disallows WebFetch/WebSearch)'
+- hash: sha256:98fe67da20cc28e0374c0db66b09fb56b26a57ec1a1176b647e045ac7ef1b37e
+  rule_id: E2
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:b0ad20d76c3dc31036d32fbb9da225a2f554554a1e6b6ede6add4a6b6d6b32c9
+  rule_id: PE3
+  file: scripts/plugin_auditor.py
+  reason: 'Detection-only: CRED_PATTERNS are regexes the auditor applies to text inside a plugin under audit; the tool itself never opens credential files (the opt-in --with-mcp child, mcp-auditor, reads
+    the user MCP config)'
+- hash: sha256:2dd4eb981c534143b970ec5b975dbfedc2ba7df45373968a9289cd425841334d
+  rule_id: PE3
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:cb64fa096aff89bea2f008b6b18d2e70e2e08e38d01e920facf36c764e29ff6f
+  rule_id: P1
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:5a531e0f511550a9ae315cf39c0a07070fc063fa15c30ff0d595225a8bccf8f9
+  rule_id: SC2
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:154aca507f509117f5cdbe68e2af2c5cb582793893a21d9eb917fd02536d4e5e
+  rule_id: SC2
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:537bdda232d7b3f7dc06da0aa3bc91744b592b5d967feb5089fc229270d3110e
+  rule_id: SC2
+  file: scripts/test_plugin_auditor.py
+  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
+- hash: sha256:d368f02529acd66d38753848845eec33346335f12d7ee9430d5d929681da1773
+  rule_id: PE3
+  file: .githooks/pre-commit
+  reason: 'Comment text only: explains that the secret scanner catches dotenv-style secrets; no credential file is read'
+- hash: sha256:a9a246214782dfadb856ac1fbe2b3230ec8e41a46eb979bb0ed44f8c2d8eeefb
+  rule_id: SC2
+  file: assets/banner.svg
+  reason: Decorative text label in the README banner image (a pipe-to-shell illustration); no code is fetched or executed
+- hash: sha256:57f0e90a9ca1c1415189a5a1e46caecbd2eb43dd338e74e2afffdedbd43c3ad7
+  rule_id: SC9
+  file: .githooks/commit-msg
+  reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
+- hash: sha256:860be13ecce0dc83631a9a00684f4846f4aec07ea15ed1c0ae8d4c7995a8dbf1
+  rule_id: SC9
+  file: .githooks/pre-commit
+  reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
+- hash: sha256:f8b2bc0601e50c984702d7186a443713cd64967f1a979f91a2eb87b7bc77d941
+  rule_id: SC9
+  file: .githooks/pre-push
+  reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
+- hash: sha256:e88c5152f007f836e6ac19d80f88e1fd922192b043a70c391e6d37a054a20c19
+  rule_id: SC9
+  file: .githooks/setup-hooks.ps1
+  reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
+- hash: sha256:8fc02dbbf97538d4545314ce50cfbe3f4ed085ce2ee2f323d1345c3ec196a5c9
+  rule_id: SC9
+  file: .githooks/setup-hooks.sh
+  reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
+- hash: sha256:282aa67f2a0863eed67c27530e69b8a436950fe29450d8336837e846495b19cb
+  rule_id: SC9
+  file: .githooks/tag
+  reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
+- hash: sha256:603c59b81a309a5fb4dce2a48489bb743c85c99d698241284f6c9fbbbcbcfff8
+  rule_id: SC9
+  file: .githooks/test-hooks.sh
+  reason: Plain-text commit-guard script in the .githooks/ folder (git core.hooksPath convention); readable shell/PowerShell, no network or obfuscation, reviewed
+- hash: sha256:3600213488faf36cf153704cfe7abcafc75e9691fd4057c3f6da60a73209c5ac
+  rule_id: TM2
+  file: .githooks/test-hooks.sh
+  reason: Test-harness helper that deletes its own temporary fixture inside a throwaway repo; not chained tool abuse
+- hash: sha256:dcafd936da5a1bed206548870ba375bffedfa7d8038413c126ba835a19b13f1d
+  rule_id: TM1
+  file: .github/workflows/verify.yml
+  reason: 'Comment text only: explains why CI re-runs the scan (a local hook bypass cannot skip it); the workflow does not bypass anything'

@@ -7,6 +7,7 @@ exact prose). Also verifies a directory-of-plugins audit covers every plugin.
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -146,6 +147,49 @@ class PluginAuditorTests(unittest.TestCase):
             {"name": "p", "version": "1", "workflows": [str(alt)]}))
         _, out = run_cli("audit", str(root))
         self.assertNotIn("Traceback", out)
+
+    def test_secrets_in_commands_and_urls_are_masked(self):
+        root = self.base / "p"
+        secret = "SUPERSECRETVALUE"
+        url = f"http://u:{secret}@h/p?token={secret}"
+        _write(root / ".claude-plugin" / "plugin.json", json.dumps({
+            "name": "p", "version": "1",
+            "userConfig": {"d": {"type": "string", "default": "../" + secret + "/x"}},
+            "hooks": {"E": [{"hooks": [{"type": "command", "command":
+                f"curl -H 'Authorization: Bearer {secret}' http://h/x --password={secret}"}]}]},
+            "mcpServers": {"s": {"command": "node", "env": {"U": url}, "url": url}},
+        }))
+        _write(root / "monitors" / "monitors.json", json.dumps(
+            {"monitors": [{"name": "m", "command": f"API_KEY={secret} run-it"}]}))
+        _, out = run_cli("audit", str(root))
+        self.assertNotIn(secret, out)
+        self.assertIn("curl", out)
+        self.assertIn("run-it", out)
+
+    def test_with_mcp_missing_sibling_reports_note(self):
+        root = self.base / "p"
+        _write(root / ".claude-plugin" / "plugin.json",
+               json.dumps({"name": "p", "version": "1", "mcpServers": {"s": {"command": "node"}}}))
+        home = self.base / "fakehome"
+        home.mkdir()
+        env = {**os.environ, "USERPROFILE": str(home), "HOME": str(home)}
+        proc = subprocess.run([sys.executable, "-I", str(SCRIPT), "audit", str(root), "--with-mcp"],
+                              capture_output=True, text=True, timeout=60, check=False, env=env)
+        self.assertIn("sibling mcp-auditor not found", proc.stdout + proc.stderr)
+
+    def test_redaction_authorization_schemes_and_speed(self):
+        import time
+        sys.path.insert(0, str(SCRIPT.parent))
+        import plugin_auditor as pa
+        for hdr in ("Authorization: token ghp_SECRETX", "Authorization: Digest SECRETX",
+                    "Authorization: Bearer SECRETX",
+                    '{"Authorization":"ApiKey SECRETX"}'):
+            self.assertNotIn("SECRETX", pa._trunc("curl -H '" + hdr + "' http://h", 200))
+        self.assertIn("--author", pa._trunc("--author bob", 200))
+        start = time.monotonic()
+        for evil in ("a-" * 50000, "token" * 50000, "-" * 100000):
+            pa._trunc(evil)
+        self.assertLess(time.monotonic() - start, 2.0)
 
     def test_single_plugin_findings(self):
         root = build_fixture(self.base / "risky-plugin")
