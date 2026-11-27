@@ -91,6 +91,62 @@ class PluginAuditorTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def _plugin_with_workflows(self, entries):
+        root = self.base / "p"
+        _write(root / ".claude-plugin" / "plugin.json",
+               json.dumps({"name": "p", "version": "1.0.0", "workflows": entries}))
+        return root
+
+    def test_manifest_workflow_traversal_not_read_or_echoed(self):
+        _write(self.base / "outside.js", "const password = 'SUPERSECRETVALUE';\n")
+        root = self._plugin_with_workflows(["../outside.js"])
+        _, out = run_cli("audit", str(root))
+        self.assertNotIn("SUPERSECRETVALUE", out)
+        self.assertIn("escapes the plugin directory", out)
+        self.assertNotIn("Traceback", out)
+
+    def test_manifest_workflow_absolute_path_does_not_crash(self):
+        outside = self.base / "abs.js"
+        _write(outside, "const password = 'SUPERSECRETVALUE';\n")
+        root = self._plugin_with_workflows([str(outside), 123])
+        _, out = run_cli("audit", str(root))
+        self.assertNotIn("SUPERSECRETVALUE", out)
+        self.assertNotIn("Traceback", out)
+
+    def test_symlinked_workflow_is_skipped(self):
+        target = self.base / "target.js"
+        _write(target, "const password = 'SUPERSECRETVALUE';\n")
+        root = self.base / "p"
+        (root / "workflows").mkdir(parents=True)
+        try:
+            (root / "workflows" / "link.js").symlink_to(target)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks not permitted on this system")
+        _, out = run_cli("audit", str(root))
+        self.assertNotIn("SUPERSECRETVALUE", out)
+        self.assertIn("symlink", out)
+
+    def test_manifest_hooks_and_monitors_outside_not_read(self):
+        ext = {"hooks": {"E": [{"hooks": [{"type": "command", "command": "echo LEAKEDCMD"}]}]},
+               "monitors": [{"name": "m", "command": "echo LEAKEDCMD"}]}
+        _write(self.base / "ext.json", json.dumps(ext))
+        root = self.base / "p"
+        _write(root / ".claude-plugin" / "plugin.json", json.dumps(
+            {"name": "p", "version": "1", "hooks": "../ext.json",
+             "experimental": {"monitors": "../ext.json"}}))
+        _, out = run_cli("audit", str(root))
+        self.assertNotIn("LEAKEDCMD", out)
+        self.assertIn("not read", out)
+
+    def test_workflow_entry_with_alternate_spelling_does_not_crash(self):
+        root = self.base / "p"
+        _write(root / "w" / "a.js", "1;")
+        alt = root / "sub" / ".." / "w" / "a.js"
+        _write(root / ".claude-plugin" / "plugin.json", json.dumps(
+            {"name": "p", "version": "1", "workflows": [str(alt)]}))
+        _, out = run_cli("audit", str(root))
+        self.assertNotIn("Traceback", out)
+
     def test_single_plugin_findings(self):
         root = build_fixture(self.base / "risky-plugin")
         code, out = run_cli("audit", str(root))

@@ -56,6 +56,8 @@ PIPE_TO_SHELL = re.compile(
 )
 
 # Credential / sensitive file & path references.
+# DETECTION-ONLY: these regexes are matched against text of files inside the audited
+# plugin. This tool never opens ~/.ssh, .env, or any credential path itself.
 CRED_PATTERNS = [
     (r"~[\\/]\.ssh", "~/.ssh SSH key directory"),
     (r"\bid_rsa\b", "id_rsa private key"),
@@ -138,8 +140,21 @@ def _cred_hits(text: str):
 # JSON / file helpers (never execute anything)
 # --------------------------------------------------------------------------- #
 
-def _load_json(path: Path):
-    """Return (data, error_str). Never raises."""
+def _is_contained(root: Path, path: Path) -> bool:
+    """True only for a regular, non-symlink file that resolves inside root."""
+    try:
+        if path.is_symlink():
+            return False
+        return path.resolve().is_relative_to(root.resolve())
+    except (OSError, ValueError):
+        return False
+
+
+def _load_json(path: Path, root: Path | None = None):
+    """Return (data, error_str). Never raises. With root, refuses symlinks and
+    paths that resolve outside it (so outside files are never read)."""
+    if root is not None and path.exists() and not _is_contained(root, path):
+        return None, "symlink or path outside the plugin; not read"
     try:
         return json.loads(path.read_text(encoding="utf-8", errors="replace")), None
     except FileNotFoundError:
@@ -214,7 +229,7 @@ def _check_hooks(root, manifest, name, f):
 
     hj = root / "hooks" / "hooks.json"
     if hj.is_file():
-        data, err = _load_json(hj)
+        data, err = _load_json(hj, root)
         if err:
             f.append(Finding(MEDIUM, name, "hooks/hooks.json",
                              "hooks file present but unreadable - inspect it by hand", err))
@@ -225,7 +240,7 @@ def _check_hooks(root, manifest, name, f):
         hooks = manifest["hooks"]
         if isinstance(hooks, str):  # path to a hooks file
             hp = (root / hooks)
-            data, err = _load_json(hp)
+            data, err = _load_json(hp, root)
             if err:
                 f.append(Finding(MEDIUM, name, f"plugin.json hooks -> {hooks}",
                                  "manifest names a hooks file that is unreadable", err))
@@ -264,7 +279,7 @@ def _check_monitors(root, manifest, name, f):
     sources = []
     mj = root / "monitors" / "monitors.json"
     if mj.is_file():
-        data, err = _load_json(mj)
+        data, err = _load_json(mj, root)
         if err:
             f.append(Finding(MEDIUM, name, "monitors/monitors.json",
                              "monitors file present but unreadable", err))
@@ -275,8 +290,11 @@ def _check_monitors(root, manifest, name, f):
         exp = manifest.get("experimental", {})
         mons = exp.get("monitors") if isinstance(exp, dict) else None
         if isinstance(mons, str):
-            data, err = _load_json(root / mons)
-            if not err:
+            data, err = _load_json(root / mons, root)
+            if err:
+                f.append(Finding(MEDIUM, name, f"experimental.monitors -> {mons}",
+                                 "manifest names a monitors file that is unreadable", err))
+            else:
                 sources.append((f"experimental.monitors -> {mons}", data))
         elif mons is not None:
             sources.append(("plugin.json experimental.monitors (inline)", {"monitors": mons}))
@@ -298,12 +316,21 @@ def _check_workflows(root, manifest, name, f):
     if isinstance(manifest, dict):
         wf = manifest.get("workflows")
         for entry in (wf if isinstance(wf, list) else [wf] if isinstance(wf, str) else []):
+            if not isinstance(entry, str):
+                continue
             p = root / entry
             if p.is_file() and p not in files:
                 files.append(p)
 
     for p in files:
-        comp = p.relative_to(root).as_posix()
+        if not _is_contained(root, p):
+            # Outside the plugin or a symlink: never read it, just flag it.
+            shown = p.relative_to(root).as_posix() if p.is_relative_to(root) else p.name
+            f.append(Finding(HIGH, name, shown,
+                             "workflow path is a symlink or escapes the plugin directory; "
+                             "not read", ""))
+            continue
+        comp = p.resolve().relative_to(root.resolve()).as_posix()
         content = _read_text(p)
         sev, why, snip = MEDIUM, "JavaScript that runs as a workflow; review it", ""
         m = WORKFLOW_DANGER.search(content)
@@ -316,7 +343,7 @@ def _check_workflows(root, manifest, name, f):
             if creds:
                 reasons.append("references credentials/paths: " + ", ".join(sorted(set(creds))))
             why = "workflow JavaScript " + "; ".join(reasons)
-            snip = _trunc(m.group(0) if m else content)
+            snip = _trunc(m.group(0)) if m else ""  # never echo raw file content
         f.append(Finding(sev, name, comp, why, snip))
 
 
@@ -324,7 +351,7 @@ def _check_lsp(root, manifest, name, f):
     entries = []  # (component, command-str)
     lj = root / ".lsp.json"
     if lj.is_file():
-        data, err = _load_json(lj)
+        data, err = _load_json(lj, root)
         if not err:
             for cmd in _walk_command_strings(data):
                 entries.append((".lsp.json", cmd))
@@ -352,6 +379,10 @@ def _check_scripts(root, name, f):
             files.extend(sdir.rglob(ext))
     for p in sorted(set(files)):
         comp = p.relative_to(root).as_posix()
+        if not _is_contained(root, p):
+            f.append(Finding(MEDIUM, name, comp,
+                             "symlink or path outside the plugin; not read", ""))
+            continue
         content = _read_text(p)
         reasons, sev, snip = [], None, ""
         if PIPE_TO_SHELL.search(content):
@@ -381,6 +412,10 @@ def _check_markdown(root, name, f):
             continue
         for p in sorted(d.rglob("*.md")):
             comp = f"{sub}/{p.relative_to(d).as_posix()}"
+            if not _is_contained(root, p):
+                f.append(Finding(MEDIUM, name, comp,
+                                 "symlink or path outside the plugin; not read", ""))
+                continue
             text = _read_text(p)
             front, _body = _split_frontmatter(text)
             whole = text
@@ -540,8 +575,11 @@ def _check_mcp_static(root, manifest, name, f):
     sources = []
     mj = root / ".mcp.json"
     if mj.is_file():
-        data, err = _load_json(mj)
-        if not err and isinstance(data, dict):
+        data, err = _load_json(mj, root)
+        if err:
+            f.append(Finding(MEDIUM, name, ".mcp.json",
+                             ".mcp.json present but unreadable - inspect it by hand", err))
+        elif isinstance(data, dict):
             sources.append((".mcp.json", data.get("mcpServers", data)))
     if isinstance(manifest, dict) and manifest.get("mcpServers"):
         sources.append(("plugin.json mcpServers", manifest.get("mcpServers")))
@@ -623,7 +661,10 @@ def _delegate_mcp(plugin_root: Path):
         return "[--with-mcp] sibling mcp-auditor not found at %s" % sibling
     try:
         proc = subprocess.run(
-            [sys.executable, "-I", str(sibling), "audit", "--config", str(plugin_root)],
+            # List argv, shell=False (default). Absolute path + "--config=" form means
+            # the path can never be parsed as an option.
+            [sys.executable, "-I", str(sibling), "audit",
+             "--config=" + str(plugin_root.resolve())],
             capture_output=True, text=True, timeout=60, check=False,
         )
         out = (proc.stdout or "") + (proc.stderr or "")
@@ -708,7 +749,7 @@ def run_audit(path: Path, with_mcp: bool):
                 "directory of such plugins)." % path), 0
 
     for root in targets:
-        manifest, _ = _load_json(root / ".claude-plugin" / "plugin.json")
+        manifest, _ = _load_json(root / ".claude-plugin" / "plugin.json", root)
         manifest = manifest if isinstance(manifest, dict) else {}
         pname = manifest.get("name") or root.name
         audited.append(pname)

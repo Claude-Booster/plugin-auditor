@@ -76,6 +76,7 @@ Leads with a one-line verdict + per-severity counts, then findings grouped HIGH�
 ## Safety
 
 - **Read-only.** It only reads files and pattern-matches — it never executes hooks, scripts, binaries, workflows, monitors, or MCP servers from the plugin.
+- **Contained reads** — symlinks and paths resolving outside the plugin (e.g. `..` in manifest entries) are never read; they are reported as findings. The tool never opens credential files or uses the network; `CRED_PATTERNS` only match text inside the audited plugin. `--with-mcp` shells out with a fixed argv (no shell).
 - **Secret values never printed** — sensitive `userConfig`/`env` surfaces show key names only.
 - The only thing it may spawn is the sibling **mcp-auditor**, and only with `--with-mcp`.
 
