@@ -15,7 +15,7 @@
 
 A Claude Code **plugin is a filesystem bundle**, not a single MCP server — and when you enable it, many of its parts **execute** (hooks, `bin/` binaries, background monitors, `workflows/*.js`, LSP servers, bundled scripts) or **load into the model's context** (the markdown of its skills, commands, and agents). Reviewing the plugin's *code* misses most of this.
 
-**plugin-auditor** statically inspects a plugin bundle and flags the risky parts in plain English. It is **read-only**: it never runs any hook, script, binary, workflow, monitor, or MCP server from the plugin, and never prints secret values (key names only).
+**plugin-auditor** statically inspects a plugin bundle and flags the risky parts in plain English. It is **read-only**: it never runs any hook, script, binary, workflow, monitor, or MCP server from the plugin (unless you pass `--with-mcp`, see Safety), never prints sensitive `userConfig`/`env` values (key names only); command and URL evidence is shown with likely secrets (tokens, passwords, Authorization/Bearer, URL credentials, query values) masked on a best-effort basis.
 
 > It sits alongside the sibling tools: **config-guard** gates/quarantines untrusted config; **plugin-auditor** deep-analyzes a plugin bundle; **mcp-auditor** audits the MCP tool metadata within it — plugin-auditor delegates to it.
 
@@ -75,10 +75,10 @@ Leads with a one-line verdict + per-severity counts, then findings grouped HIGH�
 
 ## Safety
 
-- **Read-only.** It only reads files and pattern-matches — it never executes hooks, scripts, binaries, workflows, monitors, or MCP servers from the plugin.
-- **Contained reads** — symlinks and paths resolving outside the plugin (e.g. `..` in manifest entries) are never read; they are reported as findings. The tool never opens credential files or uses the network; `CRED_PATTERNS` only match text inside the audited plugin. `--with-mcp` shells out with a fixed argv (no shell).
-- **Secret values never printed** — sensitive `userConfig`/`env` surfaces show key names only.
-- The only thing it may spawn is the sibling **mcp-auditor**, and only with `--with-mcp`.
+- **Read-only.** It only reads files and pattern-matches — it never executes hooks, scripts, binaries, workflows, monitors, or MCP servers from the plugin — except via the opt-in `--with-mcp` (below).
+- **Contained reads** — symlinks and paths resolving outside the plugin (e.g. `..` in manifest entries) are never read; they are reported as findings. Without `--with-mcp` the tool never opens credential files or uses the network; `CRED_PATTERNS` only match text inside the audited plugin. `--with-mcp` shells out with a fixed argv (no shell) and refuses a symlinked script.
+- **Secrets masked** — sensitive `userConfig`/`env` surfaces show key names only; command/URL evidence masks likely secrets (best-effort, heuristic — not a guarantee).
+- The only thing it may spawn is the sibling **mcp-auditor** script (`~/.claude/skills/mcp-auditor/scripts/mcp_auditor.py`, which then runs as you), and only with `--with-mcp`. `--with-mcp` hands off to mcp-auditor, which STARTS the plugin's stdio MCP servers and connects to its http MCP URLs (plus your own configured servers) as you - use it only after reviewing the static report. Its output is secret-masked best-effort. mcp-auditor also writes its own baseline.json, so the plugin's current MCP tool metadata becomes the reference for later change checks.
 
 ## Contributing
 
