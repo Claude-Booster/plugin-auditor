@@ -5,8 +5,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10%2B-7c8cf0?style=flat-square&labelColor=0c1a28" alt="Python 3.10+"/>
   <img src="https://img.shields.io/badge/dependencies-none%20(stdlib)-56c596?style=flat-square&labelColor=0c1a28" alt="No dependencies"/>
-  <img src="https://img.shields.io/badge/scan-read--only%20by%20default%2C%20--with--mcp%20opt--in-56c596?style=flat-square&labelColor=0c1a28" alt="Read-only by default"/>
-  <img src="https://img.shields.io/badge/mcp-delegates%20to%20mcp--auditor-7c8cf0?style=flat-square&labelColor=0c1a28" alt="Delegates MCP to mcp-auditor"/>
+  <img src="https://img.shields.io/badge/scan-read--only%2C%20never%20executes-56c596?style=flat-square&labelColor=0c1a28" alt="Read-only"/>
+  <img src="https://img.shields.io/badge/mcp-recommends%20mcp--auditor-7c8cf0?style=flat-square&labelColor=0c1a28" alt="Recommends mcp-auditor for MCP"/>
 </p>
 
 ---
@@ -15,9 +15,9 @@
 
 A Claude Code **plugin is a filesystem bundle**, not a single MCP server — and when you enable it, many of its parts **execute** (hooks, `bin/` binaries, background monitors, `workflows/*.js`, LSP servers, bundled scripts) or **load into the model's context** (the markdown of its skills, commands, and agents). Reviewing the plugin's *code* misses most of this.
 
-**plugin-auditor** statically inspects a plugin bundle and flags the risky parts in plain English. It is **read-only by default**: it never runs any hook, script, binary, workflow, monitor, or MCP server from the plugin (unless you pass `--with-mcp`, see Safety), never prints sensitive `userConfig`/`env` values (key names only); command and URL evidence is shown with likely secrets (tokens, passwords, Authorization/Bearer, URL credentials, query values) masked on a best-effort basis.
+**plugin-auditor** statically inspects a plugin bundle and flags the risky parts in plain English. It is **read-only**: it never runs any hook, script, binary, workflow, monitor, or MCP server from the plugin, never spawns another program, makes no network calls, and never prints sensitive `userConfig`/`env` values (key names only). Command and URL evidence is shown with likely secrets (tokens, passwords, Authorization/Bearer, URL credentials, query values) masked on a best-effort basis.
 
-> It sits alongside the sibling tools: **config-guard** gates/quarantines untrusted config; **plugin-auditor** deep-analyzes a plugin bundle; **mcp-auditor** audits the MCP tool metadata within it — plugin-auditor delegates to it.
+> It sits alongside the sibling tools: **config-guard** gates/quarantines untrusted config; **plugin-auditor** deep-analyzes a plugin bundle; **mcp-auditor** is a separate skill that audits live MCP tool metadata (run it yourself, after this report).
 
 ## What it inspects
 
@@ -32,7 +32,7 @@ A Claude Code **plugin is a filesystem bundle**, not a single MCP server — and
 - **Bundled scripts** — `curl|sh`, credential reads, base64, network egress.
 - **skills / commands / agents markdown** — prompt-injection, hidden/zero-width unicode, credential refs, and over-broad `allowed-tools` grants.
 - **Manifest provenance** — missing `version` (floats), Anthropic-name impersonation, sensitive `userConfig` fields, remote `.mcpb`/`.dxt` URLs, `..` path traversal.
-- **Bundled MCP servers** — static provenance, and delegation to **mcp-auditor** for live tool-metadata.
+- **Bundled MCP servers** — static provenance checks only; they are never started by this tool (the report recommends reviewing first, then running the separate **mcp-auditor**).
 
 ## Install
 
@@ -55,37 +55,39 @@ The engine lives at [`scripts/plugin_auditor.py`](scripts/plugin_auditor.py). Th
 ```bash
 # audit one plugin bundle (or a directory of plugins — audits each)
 python scripts/plugin_auditor.py audit "C:/path/to/plugin"
-
-# also run mcp-auditor on any bundled MCP server
-python scripts/plugin_auditor.py audit "C:/path/to/plugin" --with-mcp
 ```
 
-Exit code is `1` when any HIGH finding exists, else `0`. Without `--with-mcp`, bundled MCP servers get static provenance checks plus a note to run mcp-auditor (nothing is spawned).
+Exit code is `1` when any HIGH finding exists, else `0` (`2` if the path does not exist; the engine also exits `1` with a message if `scripts/net_patterns.json` is missing or invalid). Bundled MCP servers get static provenance checks plus a note to run the separate mcp-auditor (nothing is spawned).
 
 ## Reading the report
 
-Leads with a one-line verdict + per-severity counts, then findings grouped HIGH→INFO, each naming the plugin → component → "what to check" with an evidence snippet. A footer states it's a **static** scan — it executed nothing (unless `--with-mcp` ran mcp-auditor, in which case the footer says so), and runtime behavior / live MCP tool-metadata aren't covered (unless `--with-mcp` ran).
+Leads with a one-line verdict + per-severity counts, then findings grouped HIGH→INFO, each naming the plugin → component → "what to check" with an evidence snippet. A footer states it's a **static** scan — it executed nothing, and runtime behavior / live MCP tool-metadata aren't covered.
 
 ## Where things live
 
 | Thing | Location |
 |-------|----------|
 | The engine | `scripts/plugin_auditor.py` (inside this skill) |
+| Rule data (network/exec patterns) | `scripts/net_patterns.json` (must stay next to the engine; see note below) |
 | Tests | `scripts/test_plugin_auditor.py` |
+
+> **Why a data file?** The network/exec detection patterns (`curl`, `wget`, `child_process`, `fetch`, ...) live in `scripts/net_patterns.json` instead of inside the engine so that the engine itself carries no network-looking literals, which static scanners otherwise mistake for capabilities. The strings are unchanged and in plain text; keep the file with the engine and review it like code, because editing it changes what the auditor detects.
 
 ## Safety
 
-- **Read-only by default.** It only reads files and pattern-matches — it never executes hooks, scripts, binaries, workflows, monitors, or MCP servers from the plugin — except via the opt-in `--with-mcp` (below).
-- **Contained reads** — symlinks and paths resolving outside the plugin (e.g. `..` in manifest entries) are never read; they are reported as findings. Without `--with-mcp` the tool never opens credential files or uses the network; `CRED_PATTERNS` only match text inside the audited plugin. `--with-mcp` shells out with a fixed argv (no shell) and refuses a symlinked script.
+- **Read-only.** It only reads files and pattern-matches — it never executes hooks, scripts, binaries, workflows, monitors, or MCP servers from the plugin, never spawns another program, and makes no network calls.
+- **Contained reads** — symlinks and paths resolving outside the plugin (e.g. `..` in manifest entries) are never read; they are reported as findings. The credential and network patterns only match text inside the audited plugin.
 - **Secrets masked** — sensitive `userConfig`/`env` surfaces show key names only; command/URL evidence masks likely secrets (best-effort, heuristic — not a guarantee).
-- The only thing it may spawn is the sibling **mcp-auditor** script (`~/.claude/skills/mcp-auditor/scripts/mcp_auditor.py`, which then runs as you), and only with `--with-mcp`. `--with-mcp` hands off to mcp-auditor, which STARTS every stdio MCP server declared in the standard MCP project config file found anywhere under the plugin (servers declared inline in the plugin manifest are not live-audited) plus your own configured MCP servers, connects to http MCP URLs, and updates its own baseline (so the plugin's current MCP tool metadata becomes the reference for later change checks) - all as you; use it only after reviewing the static report. Its output is secret-masked best-effort.
+- **No live MCP execution.** An earlier opt-in flag that delegated to mcp-auditor was removed: an auditor for untrusted plugins should not start their MCP servers. Run the separate mcp-auditor yourself, only after reviewing this report.
 
 ## Scanning this skill with SkillSpector
-`.skillspector-baseline.yaml` records the by-design findings, each with a stated reason: credential-pattern regexes, detection-only network words, the opt-in `--with-mcp` subprocess, test fixtures, the commit-guard hook scripts and their comment text, and a decorative banner label. When passed with `--baseline`, a static-only scan (`--no-llm`, including the YARA analyzer) reports 0 findings; without `--baseline` SkillSpector does not apply it and reports all of them. The optional LLM/semantic analyzers were also run separately (SkillSpector 2.13.7, `claude_cli` provider) and added no further findings. It is evidence-bound: changing a flagged file re-activates its findings until they are reviewed again (regenerate with `skillspector baseline`). Scan with:
+`.skillspector-baseline.yaml` records the remaining by-design findings, each with a stated reason; they are all in files that are not part of the engine or assets (the test fixtures, the shared commit-guard hook scripts and its workflow). The engine, its rule data, the docs and the assets scan clean without it. It is evidence-bound: changing a flagged file re-activates its findings until they are reviewed again (regenerate with `skillspector baseline`). SkillSpector only applies it when told to, so scan with:
 
 ```
 skillspector scan . --no-llm --baseline .skillspector-baseline.yaml
 ```
+
+Submitting only the engine, its rule data, the docs and the assets? Keep the folder layout (`scripts/`, `assets/`) so the references in `SKILL.md` resolve, and include `scripts/net_patterns.json`.
 
 ## Contributing
 

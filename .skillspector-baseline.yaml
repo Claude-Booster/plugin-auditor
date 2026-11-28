@@ -5,73 +5,47 @@ version: 2
 scanner_version: 2.13.7
 rules: []
 fingerprints:
-- hash: sha256:cf0b6ead8f4c66c3eae50aa481577b36b5690359b1bf74bfd71a6821431d88cc
-  rule_id: AST4
-  file: scripts/plugin_auditor.py
-  reason: 'Sole subprocess: opt-in --with-mcp runs the sibling mcp-auditor with fixed argv, shell=False, symlink refused; documented in SKILL.md/README.md'
-- hash: sha256:4ddbabd05ffae7d5eda75af861dc36a4d774edc9b160a2b80cc57df8d8e39c72
+- hash: sha256:74c415470ce7b50113ec0ea1831b8840dc0a479c6c6631d340c61839b1d31f0a
   rule_id: AST4
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:d262b876a924fb55258b53570bf7bc646b93e45c9bd29e11c6ce0827622185ee
+- hash: sha256:76591cbc5c91dc8c35a597909f25dc1897638d623b632cbfac366193e9f926e5
   rule_id: AST4
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:617bcef7ab9e57c8ceb9deda5d172a907db546eb73a1eb8ea97fef08ae888d3b
+- hash: sha256:a8c9cefdea97cd81ed256a02c15fcf236ad910f449d4689a7ec8eef22c838564
   rule_id: AST4
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:30df39e00386e30e66b23e56946d457f32cce1efa607383e30d05572ba2bb90c
+- hash: sha256:8c0c128ef6ebf835c297034350ebb04d6b4d1957ff35e23649c5f4a656bdc1d2
   rule_id: LP1
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:0bd14f4b6422ffb31aae692c512c9efafe35c5489540a7b1c9e39b2b92d18fd4
+- hash: sha256:e0198c2fc2d6e4a229c297263a34052f53692b832bc3a7040ba6e58b2e545676
   rule_id: LP1
-  file: scripts/test_plugin_auditor.py
-  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:45e96423690326b802b03b68e12d70a3faa7e06b28ca7c47579bc1e34afca22b
-  rule_id: LP1
-  file: scripts/plugin_auditor.py
-  reason: 'Detection-only: network/exec words appear only inside scanner regex strings; the tool imports no network module and makes no network calls itself (the opt-in --with-mcp child may; see the AST4
-    entry) (SKILL.md disallows WebFetch/WebSearch)'
-- hash: sha256:bcb59dfe8dfd3ff21cc3b52f605cd6077394e4110a8270a1d46a12826942b54f
-  rule_id: E2
-  file: scripts/test_plugin_auditor.py
-  reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:8bd0bc50999339271da4bd30bd554d14ac3c32097910dcf7d0c5f970ca6a3e6c
-  rule_id: E2
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
 - hash: sha256:ba301eb68b296a036e1865f5c09fffeccfd994721c5bce587c9237b067f56f2f
   rule_id: PE3
   file: .githooks/pre-commit
   reason: 'Comment text only: explains that the secret scanner catches dotenv-style secrets; no credential file is read'
-- hash: sha256:cc8a172f77306418118e32d26ee5b251ee3966bc16f8b7b74a4027314ae437f7
-  rule_id: PE3
-  file: scripts/plugin_auditor.py
-  reason: 'Detection-only: CRED_PATTERNS are regexes the auditor applies to text inside a plugin under audit; the tool itself never opens credential files (the opt-in --with-mcp child, mcp-auditor, reads
-    the user MCP config)'
-- hash: sha256:e633b1a06f40ce576949d509f0d1d50efc33556213e98560f1281c43fb6fa144
+- hash: sha256:599c5260e61f9be96b09245eb17341160a195962346d0ea68d31fe342b788b75
   rule_id: PE3
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:5e659c3963c5b0754e3ad2cafd5ff0cfe13291141d5b50a343ca2f186866eed2
+- hash: sha256:14862dc35c28a2ef0080ea8a88b3b7183a88201075c68c6d03fe9ad9ed1b4027
   rule_id: P1
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:a9a246214782dfadb856ac1fbe2b3230ec8e41a46eb979bb0ed44f8c2d8eeefb
-  rule_id: SC2
-  file: assets/banner.svg
-  reason: Decorative text label in the README banner image (a pipe-to-shell illustration); no code is fetched or executed
-- hash: sha256:49b20c14800258e502966f55340ad2f561dfc584c9fc57c583ca455dfa98d685
+- hash: sha256:10fa22873d283a6b9947206674e2f39f36fa9242e3e4e5bb123bd40ff585ebe0
   rule_id: SC2
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:ed3bbe50e6e9a740c8416dddc4d1c41ad416d2294c1717c04de5dc47c84dddb2
+- hash: sha256:be46a0e2f0579c13b0ed2ab5a8e7543059619f494a8fb91f8bce7381fb3e5e9d
   rule_id: SC2
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
-- hash: sha256:3c198f031ee0569552154aabcbb02bbff07bd0bb829c7f788684f2328ee7753f
+- hash: sha256:900ab92a69f97c131fd9f44c69f11326f2a3febb96934ddbe7e7b417c242cbb5
   rule_id: SC2
   file: scripts/test_plugin_auditor.py
   reason: 'Test fixture/harness: intentionally malicious-looking plugin samples and CLI subprocess runs used to test the auditor; not shipped behaviour'
