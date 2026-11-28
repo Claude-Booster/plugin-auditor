@@ -18,6 +18,11 @@ Tool (bundled inside this skill at `scripts/plugin_auditor.py`, with its rule da
 - The user **installs or evaluates a plugin / marketplace** (especially a community one).
 - "Is this plugin safe?", "audit this plugin", "what will this plugin run?"
 
+## When NOT to use it
+- Checking a single live MCP server's tool metadata — that is the separate **mcp-auditor** skill.
+- Gating repo-shipped Claude config when a repo is first opened — that is **config-guard**.
+- General questions about how plugins work, or a plugin you are only editing yourself — answer directly; no audit needed.
+
 ## Usage
 - `audit <plugin-dir>` — audit one plugin bundle (or a directory of plugins; audits each).
 

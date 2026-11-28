@@ -42,7 +42,7 @@ A self-contained Claude Code **skill** — auto-discovered, **no configuration, 
 git clone https://github.com/Claude-Booster/plugin-auditor.git ~/.claude/skills/plugin-auditor
 ```
 
-The engine lives at [`scripts/plugin_auditor.py`](scripts/plugin_auditor.py). Then ask Claude *"audit this plugin"* / *"is this plugin safe?"*.
+The engine lives at [`scripts/plugin_auditor.py`](scripts/plugin_auditor.py). Then ask Claude *"audit this plugin"* / *"is this plugin safe?"*. Not for auditing a single live MCP server (use **mcp-auditor**), gating repo-shipped config when a repo is first opened (use **config-guard**), or general questions about plugins.
 
 ### Requirements
 
