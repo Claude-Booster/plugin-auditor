@@ -50,7 +50,7 @@
         <animate attributeName="stroke" keyTimes="0;0.30;0.34;0.92;0.96;1"
           values="#2f4a60;#2f4a60;#e0564a;#e0564a;#2f4a60;#2f4a60" dur="8s" repeatCount="indefinite"/>
       </rect>
-      <text x="660" y="64" fill="#8ea2b2">hooks  curl | sh</text>
+      <text x="660" y="64" fill="#8ea2b2">hooks  curl|sh</text>
       <text x="786" y="64" text-anchor="end" fill="#ff6f61" opacity="0">!
         <animate attributeName="opacity" keyTimes="0;0.32;0.36;0.92;0.96;1" values="0;0;1;1;0;0" dur="8s" repeatCount="indefinite"/>
       </text>
@@ -72,7 +72,7 @@
       <text x="660" y="144" fill="#8ea2b2">skills  ok</text>
       <text x="786" y="144" text-anchor="end" fill="#56c596">ok</text>
     </g>
-    <!-- mcp (delegated) -->
+    <!-- mcp (recommends mcp-auditor) -->
     <g>
       <rect x="648" y="166" width="150" height="28" rx="6" fill="#16293a" stroke="#2f4a60" stroke-width="2"/>
       <text x="660" y="184" fill="#8ea2b2">mcp  -> mcp-auditor</text>

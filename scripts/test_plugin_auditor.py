@@ -7,7 +7,6 @@ exact prose). Also verifies a directory-of-plugins audit covers every plugin.
 """
 
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -166,17 +165,6 @@ class PluginAuditorTests(unittest.TestCase):
         self.assertIn("curl", out)
         self.assertIn("run-it", out)
 
-    def test_with_mcp_missing_sibling_reports_note(self):
-        root = self.base / "p"
-        _write(root / ".claude-plugin" / "plugin.json",
-               json.dumps({"name": "p", "version": "1", "mcpServers": {"s": {"command": "node"}}}))
-        home = self.base / "fakehome"
-        home.mkdir()
-        env = {**os.environ, "USERPROFILE": str(home), "HOME": str(home)}
-        proc = subprocess.run([sys.executable, "-I", str(SCRIPT), "audit", str(root), "--with-mcp"],
-                              capture_output=True, text=True, timeout=60, check=False, env=env)
-        self.assertIn("sibling mcp-auditor not found", proc.stdout + proc.stderr)
-
     def test_redaction_authorization_schemes_and_speed(self):
         import time
         sys.path.insert(0, str(SCRIPT.parent))
@@ -191,9 +179,8 @@ class PluginAuditorTests(unittest.TestCase):
             pa._trunc(evil)
         self.assertLess(time.monotonic() - start, 2.0)
 
-    # ---- report footer must match what actually ran (--with-mcp) ----
+    # ---- static-only guarantees ----
     STATIC = "This is a STATIC scan"
-    LIVE = "HOWEVER --with-mcp ran mcp-auditor"
 
     def _mcp_plugin(self):
         root = self.base / "p"
@@ -201,94 +188,64 @@ class PluginAuditorTests(unittest.TestCase):
         _write(root / ".mcp.json", json.dumps({"mcpServers": {"s": {"command": "node"}}}))
         return root
 
-    def _run_with_home(self, root, stub=None, symlink_to=None):
-        home = self.base / "fakehome"
-        sib = home / ".claude" / "skills" / "mcp-auditor" / "scripts" / "mcp_auditor.py"
-        if stub is not None:
-            _write(sib, stub)
-        if symlink_to is not None:
-            sib.parent.mkdir(parents=True, exist_ok=True)
-            sib.symlink_to(symlink_to)
-        env = {**os.environ, "USERPROFILE": str(home), "HOME": str(home)}
-        home.mkdir(exist_ok=True)
-        proc = subprocess.run([sys.executable, "-I", str(SCRIPT), "audit", str(root), "--with-mcp"],
-                              capture_output=True, text=True, timeout=60, check=False, env=env)
-        return proc.stdout + proc.stderr
-
-    def test_footer_static_without_with_mcp(self):
+    def test_footer_is_static_and_mcp_is_not_started(self):
         _, out = run_cli("audit", str(self._mcp_plugin()))
         self.assertIn(self.STATIC, out)
+        self.assertIn("NOT started by this tool", out)
         self.assertNotIn("MCP delegation", out)
 
-    def test_footer_live_when_mcp_auditor_ran(self):
-        out = self._run_with_home(self._mcp_plugin(), stub='print("STUB_MARKER")\n')
-        self.assertIn("STUB_MARKER", out)
-        self.assertIn(self.LIVE, out)
-        self.assertNotIn(self.STATIC, out)  # never claims no execution when delegation ran
+    def test_with_mcp_flag_is_removed(self):
+        code, out = run_cli("audit", str(self._mcp_plugin()), "--with-mcp")
+        self.assertEqual(code, 2, out)  # argparse: unrecognized argument
+        self.assertIn("unrecognized arguments", out)
 
-    def test_footer_static_when_sibling_missing(self):
-        out = self._run_with_home(self._mcp_plugin())
-        self.assertIn("not found", out)
-        self.assertIn(self.STATIC, out)
-        self.assertNotIn(self.LIVE, out)
+    def test_tool_never_spawns_programs_or_uses_network(self):
+        import ast
 
-    def test_footer_static_when_sibling_symlink_refused(self):
-        target = self.base / "real_stub.py"
-        _write(target, 'print("STUB_MARKER")\n')
-        probe = self.base / "probe_link"
-        try:
-            probe.symlink_to(target)
-        except (OSError, NotImplementedError):
-            self.skipTest("symlinks not permitted on this system")
-        out = self._run_with_home(self._mcp_plugin(), symlink_to=target)
-        self.assertIn("symlink; refused", out)
-        self.assertNotIn("STUB_MARKER", out)
-        self.assertIn(self.STATIC, out)
+        banned_modules = {"subprocess", "socket", "urllib", "http", "pty", "ctypes", "multiprocessing"}
+        banned_os = {"system", "popen", "execv", "execl", "spawnv", "spawnl", "startfile"}
+        tree = ast.parse(SCRIPT.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    self.assertNotIn(alias.name.split(".")[0], banned_modules)
+            elif isinstance(node, ast.ImportFrom):
+                self.assertNotIn((node.module or "").split(".")[0], banned_modules)
+            elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) \
+                    and node.value.id == "os":
+                self.assertFalse(node.attr in banned_os or node.attr.startswith(("exec", "spawn")),
+                                 node.attr)
 
-    def test_footer_states_timeout_and_failure(self):
-        sys.path.insert(0, str(SCRIPT.parent))
-        import plugin_auditor as pa
-        for state, wording in ((pa.MCP_TIMEOUT, "may still be running"),
-                               (pa.MCP_UNKNOWN, "may or may not have started")):
-            rep = pa.format_report([], ["p"], ["note"], [state])
-            self.assertIn(self.LIVE, rep)
-            self.assertIn(wording, rep)
-            self.assertNotIn(self.STATIC, rep)
-        none_rep = pa.format_report([], ["p"], ["note"], [pa.MCP_NONE])
-        self.assertIn(self.STATIC, none_rep)
+    def test_invalid_patterns_file_fails_clearly(self):
+        lone = self.base / "lone2"
+        lone.mkdir()
+        (lone / "plugin_auditor.py").write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+        for bad in ('{"workflow_danger": "(", "script_net": "x"}', '[]', '{"workflow_danger": null, "script_net": "x"}'):
+            (lone / "net_patterns.json").write_text(bad, encoding="utf-8")
+            proc = subprocess.run([sys.executable, "-I", str(lone / "plugin_auditor.py"), "audit", str(self.base)],
+                                  capture_output=True, text=True, timeout=60, check=False)
+            self.assertNotEqual(proc.returncode, 0)
+            out = proc.stdout + proc.stderr
+            self.assertIn("cannot load net_patterns.json", out)
+            self.assertNotIn("Traceback", out)
 
-    def test_footer_mixed_states_and_failsafe(self):
-        sys.path.insert(0, str(SCRIPT.parent))
-        import plugin_auditor as pa
-        mixed = pa.format_report([], ["p", "q"], ["a", "b"], [pa.MCP_NONE, pa.MCP_RAN])
-        self.assertIn(self.LIVE, mixed)
-        self.assertNotIn(self.STATIC, mixed)
-        worst = pa.format_report([], ["p"], ["a", "b", "c"],
-                                 [pa.MCP_RAN, pa.MCP_TIMEOUT, pa.MCP_UNKNOWN])
-        self.assertIn("may still be running", worst)
-        self.assertIn("may or may not have started", worst)
-        # notes without states must fail safe (never claim "no execution")
-        failsafe = pa.format_report([], ["p"], ["some delegation output"])
-        self.assertIn(self.LIVE, failsafe)
-        self.assertNotIn(self.STATIC, failsafe)
+    def test_net_patterns_are_loaded_from_data_file(self):
+        root = self.base / "p"
+        _write(root / ".claude-plugin" / "plugin.json", json.dumps({"name": "p", "version": "1"}))
+        _write(root / "scripts" / "x.sh", "curl http://example.invalid/a\n")
+        _write(root / "workflows" / "w.js", "const cp = require('child_process');\n")
+        _, out = run_cli("audit", str(root))
+        self.assertIn("network egress", out)
+        self.assertIn("child_process", out)
 
-    def test_delegate_timeout_and_exception_paths(self):
-        from unittest import mock
-
-        sys.path.insert(0, str(SCRIPT.parent))
-        import plugin_auditor as pa
-        home = self.base / "h"
-        _write(home / ".claude" / "skills" / "mcp-auditor" / "scripts" / "mcp_auditor.py", "pass\n")
-        root = self._mcp_plugin()
-        with mock.patch.object(pa.Path, "home", return_value=home):
-            with mock.patch.object(pa.subprocess, "run",
-                                   side_effect=subprocess.TimeoutExpired("x", 1)):
-                note, state = pa._delegate_mcp(root)
-            self.assertEqual(state, pa.MCP_TIMEOUT)
-            self.assertIn("may still be running", note)
-            with mock.patch.object(pa.subprocess, "run", side_effect=OSError("boom")):
-                note, state = pa._delegate_mcp(root)
-            self.assertEqual(state, pa.MCP_UNKNOWN)
+    def test_missing_patterns_file_fails_clearly(self):
+        lone = self.base / "lone"
+        lone.mkdir()
+        (lone / "plugin_auditor.py").write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+        proc = subprocess.run([sys.executable, "-I", str(lone / "plugin_auditor.py"), "audit", str(self.base)],
+                              capture_output=True, text=True, timeout=60, check=False)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("net_patterns.json", proc.stdout + proc.stderr)
 
     def test_single_plugin_findings(self):
         root = build_fixture(self.base / "risky-plugin")

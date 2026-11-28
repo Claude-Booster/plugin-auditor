@@ -1,0 +1,5 @@
+{
+  "_comment": "Detection-only rule patterns used by plugin_auditor.py to flag network/exec behaviour inside a plugin under audit. Matched case-insensitively.",
+  "workflow_danger": "child_process|require\\(\\s*['\\\"]http|\\bexec\\b|execSync|spawn\\b|\\bfetch\\b|XMLHttpRequest|axios|net\\.connect|https?\\.request",
+  "script_net": "\\bcurl\\b|\\bwget\\b|Invoke-WebRequest|Invoke-RestMethod|\\biwr\\b|urllib|requests\\.(?:get|post)|http\\.client|socket\\b|nc\\b|netcat"
+}

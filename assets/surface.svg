@@ -40,6 +40,6 @@
       <text x="300" y="208" font-size="12" fill="#6f8496">version float, impersonation, sensitive userConfig, remote .mcpb</text></g>
     <g><circle cx="66" cy="222" r="3.5" fill="#56c596"/>
       <text x="86" y="226" font-size="13.5" fill="#eaf1f6">bundled MCP</text>
-      <text x="300" y="226" font-size="12" fill="#6f8496">delegated to mcp-auditor</text></g>
+      <text x="300" y="226" font-size="12" fill="#6f8496">static only; see mcp-auditor</text></g>
   </g>
 </svg>
